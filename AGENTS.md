@@ -1,0 +1,2 @@
+- After ANY UI change must bump package.json version AND IN TUI must be visible new version;
+- If new version MUST push tag to git to trigger workflow

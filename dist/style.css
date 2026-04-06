@@ -492,6 +492,7 @@ button {
 .tasks-container {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   flex: 1 1 auto;
   gap: 8px;
   min-height: 100px;
@@ -518,6 +519,7 @@ button {
 
 .task-item {
   display: block;
+  flex: 0 0 auto;
   min-width: 0;
   border: 1px solid rgba(108, 78, 39, 0.14);
   border-radius: 0;
@@ -536,7 +538,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  max-height: 50vh;
+  max-height: min(50vh, 1000px);
   overflow: hidden;
 }
 
@@ -690,6 +692,18 @@ button {
   overflow-x: hidden;
   padding-right: 12px;
   scrollbar-gutter: stable;
+}
+
+.task-item.expanded.has-description .task-details {
+  min-height: min(32vh, 640px);
+}
+
+.task-item.expanded.needs-tall-expansion {
+  min-height: min(50vh, 1000px);
+}
+
+.task-item.expanded.needs-tall-expansion .task-details {
+  min-height: min(38vh, 860px);
 }
 
 .task-item.expanded .task-actions {

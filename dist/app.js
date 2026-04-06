@@ -215,7 +215,7 @@ const DESCRIPTION_CLOSE_TAG = "</cancan_description>";
 
 const PRIORITY_ORDER = { high: 3, medium: 2, low: 1 };
 const WORKLOAD_ORDER = { Extreme: 4, Hard: 3, Normal: 2, Easy: 1 };
-const UI_VERSION = "v0.1.1";
+const UI_VERSION = "v0.1.4";
 
 const state = {
   client: new LuminkaClient(),
@@ -1298,8 +1298,15 @@ function renderTask(task, columnId) {
   const hasSteps = Boolean(task.steps && task.steps.length);
   const hasDescription = Boolean(task.description);
   const hasDetails = hasDescription || hasSteps || hasInfo;
+  const descriptionLineCount = hasDescription ? String(task.description).split("\n").length : 0;
+  const descriptionTextLength = hasDescription ? String(task.description).trim().length : 0;
+  const needsTallExpansion = hasDescription && (descriptionLineCount >= 6 || descriptionTextLength >= 220);
+  const taskClasses = ["task-item"];
+  if (expanded) taskClasses.push("expanded");
+  if (hasDescription) taskClasses.push("has-description");
+  if (needsTallExpansion) taskClasses.push("needs-tall-expansion");
   return `
-    <article class="task-item ${expanded ? "expanded" : ""}" data-task-id="${escapeHtml(task.id)}" data-column-id="${escapeHtml(columnId)}">
+    <article class="${taskClasses.join(" ")}" data-task-id="${escapeHtml(task.id)}" data-column-id="${escapeHtml(columnId)}">
       <div class="task-header">
         <div class="task-drag-handle" title="Drag task">⋮⋮</div>
         <button class="task-title-button" type="button" data-edit-task-title="${escapeHtml(task.id)}" data-column="${escapeHtml(columnId)}">
