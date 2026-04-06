@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CanCan</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <div class="brand-kicker">Portable kanban</div>
+        <h1>CanCan</h1>
+        <p id="workspace-root" class="workspace-root">Loading workspace...</p>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-head">
+          <h2>Boards</h2>
+          <button id="create-board-btn" class="ghost-btn">+ New</button>
+        </div>
+        <div id="board-list" class="board-list"></div>
+      </div>
+
+      <div class="sidebar-section sidebar-actions">
+        <button id="rename-board-btn" class="secondary-btn">Rename Board</button>
+        <button id="delete-board-btn" class="danger-btn">Delete Board</button>
+      </div>
+    </aside>
+
+    <main class="main-pane">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Workspace board</p>
+          <div class="board-title-row">
+            <h2 id="board-title">Loading...</h2>
+            <div class="search-shell">
+              <input id="search-input" class="toolbar-input search-input" type="text" placeholder="Search board">
+              <button id="search-clear-btn" class="search-clear hidden" type="button" aria-label="Clear search">x</button>
+            </div>
+          </div>
+          <div id="board-description" class="board-description hidden"></div>
+        </div>
+        <div class="toolbar">
+          <button id="theme-toggle-btn" class="ghost-btn">Theme: Auto</button>
+          <select id="sort-select" class="toolbar-select">
+            <option value="none">Default sort</option>
+            <option value="title">Sort by name</option>
+            <option value="deadline">Sort by due date</option>
+            <option value="priority">Sort by priority</option>
+            <option value="workload">Sort by workload</option>
+            <option value="tags">Sort by tags</option>
+          </select>
+          <button id="add-column-btn" class="primary-btn">+ Add Column</button>
+        </div>
+      </header>
+
+      <section id="notice-bar" class="notice-bar hidden"></section>
+
+      <section id="board-region" class="board-region">
+        <div id="kanban-board" class="kanban-board"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="task-modal" class="modal hidden">
+    <div class="modal-card task-modal-card">
+      <div class="modal-head">
+        <h3 id="task-modal-title">Add Task</h3>
+        <button class="icon-btn" data-close-modal="task-modal">x</button>
+      </div>
+      <form id="task-form" class="modal-form">
+        <label>
+          <span>Task title</span>
+          <input id="task-title" type="text" required>
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea id="task-description" rows="5"></textarea>
+        </label>
+        <div class="grid-two">
+          <label>
+            <span>Priority</span>
+            <select id="task-priority">
+              <option value="">None</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label>
+            <span>Workload</span>
+            <select id="task-workload">
+              <option value="">None</option>
+              <option value="Easy">Easy</option>
+              <option value="Normal">Normal</option>
+              <option value="Hard">Hard</option>
+              <option value="Extreme">Extreme</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid-two">
+          <label>
+            <span>Due date</span>
+            <input id="task-due-date" type="date">
+          </label>
+          <label class="checkbox-row">
+            <input id="task-default-expanded" type="checkbox">
+            <span>Open by default</span>
+          </label>
+        </div>
+
+        <div>
+          <span class="field-label">Tags</span>
+          <div class="chip-input-row">
+            <input id="tags-input" type="text" placeholder="Type a tag and press Enter">
+            <button id="add-tag-btn" type="button" class="ghost-btn small-btn">Add tag</button>
+          </div>
+          <div id="tags-container" class="chip-list"></div>
+        </div>
+
+        <div>
+          <span class="field-label">Steps</span>
+          <div class="chip-input-row">
+            <input id="steps-input" type="text" placeholder="Type a step and press Enter">
+            <button id="add-step-btn" type="button" class="ghost-btn small-btn">Add step</button>
+          </div>
+          <div id="steps-list" class="steps-list"></div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="task-delete-btn" type="button" class="danger-btn hidden">Delete</button>
+          <button id="task-cancel-btn" type="button" class="ghost-btn" data-close-modal="task-modal">Cancel</button>
+          <button id="task-submit-btn" type="submit" class="primary-btn">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="prompt-modal" class="modal hidden">
+    <div class="modal-card compact-modal-card">
+      <div class="modal-head">
+        <h3 id="prompt-title">Prompt</h3>
+        <button class="icon-btn" data-close-modal="prompt-modal">x</button>
+      </div>
+      <p id="prompt-message" class="prompt-copy"></p>
+      <input id="prompt-input" type="text" class="modal-standalone-input">
+      <div class="modal-actions">
+        <button id="prompt-cancel" type="button" class="ghost-btn">Cancel</button>
+        <button id="prompt-confirm" type="button" class="primary-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-card compact-modal-card">
+      <div class="modal-head">
+        <h3 id="confirm-title">Confirm</h3>
+        <button class="icon-btn" data-close-modal="confirm-modal">x</button>
+      </div>
+      <p id="confirm-message" class="prompt-copy"></p>
+      <div class="modal-actions">
+        <button id="confirm-cancel" type="button" class="ghost-btn">Cancel</button>
+        <button id="confirm-ok" type="button" class="danger-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
