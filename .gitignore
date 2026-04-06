@@ -11,3 +11,5 @@ winres_check/
 winres_extracted/
 winres_extracted_after/
 winres_extracted_final/
+
+private/
