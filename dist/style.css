@@ -59,12 +59,13 @@ body[data-theme="dark"] {
 html,
 body {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
   font-family: "Segoe UI", "Trebuchet MS", sans-serif;
   color: var(--ink);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 22%),
     linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 34%, var(--bg-deep) 100%);
+  overflow: hidden;
 }
 
 button,
@@ -86,7 +87,7 @@ button {
 .app-shell {
   display: grid;
   grid-template-columns: 286px 1fr;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .sidebar {
@@ -250,6 +251,8 @@ button {
   display: grid;
   grid-template-rows: auto auto 1fr;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .topbar {
@@ -322,6 +325,16 @@ button {
   color: var(--ink);
 }
 
+.toolbar-select,
+.modal-form select {
+  appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%23666055' d='M1.2.8 5 4.6 8.8.8 10 2 5 6 0 2z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 6px;
+}
+
 .toolbar-input,
 .toolbar-select {
   width: auto;
@@ -330,6 +343,10 @@ button {
 
 .notice-bar {
   margin: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 12px;
   border-radius: 0;
   background: #fbeed6;
@@ -337,22 +354,36 @@ button {
   border: 1px solid rgba(204, 138, 18, 0.22);
 }
 
+.notice-dismiss-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
 .board-region {
+  display: flex;
   padding: 6px 20px 20px;
-  overflow: auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .kanban-board {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 12px;
-  min-height: 100%;
+  min-width: max-content;
+  height: 100%;
 }
 
 .kanban-column {
   flex: 0 0 300px;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
   border: 1px solid rgba(108, 78, 39, 0.12);
   border-radius: var(--radius);
   background: var(--column-bg);
@@ -361,11 +392,13 @@ button {
 
 .add-column-column {
   flex: 0 0 44px;
+  height: 44px;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   align-self: flex-start;
+  padding: 0;
   border: 1px solid var(--line);
   background: transparent;
 }
@@ -376,6 +409,7 @@ button {
 }
 
 .add-column-plus {
+  display: block;
   color: var(--muted);
   font-size: 28px;
   line-height: 1;
@@ -411,6 +445,18 @@ button {
   gap: 8px;
 }
 
+.small-icon-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.small-icon-btn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+
 .count-pill {
   display: inline-flex;
   align-items: center;
@@ -426,12 +472,30 @@ button {
 .tasks-container {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 8px;
   min-height: 100px;
+  min-height: 0;
   padding: 10px;
+  overflow-y: auto;
+}
+
+.column-empty-state {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px dashed rgba(108, 78, 39, 0.2);
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--muted);
+}
+
+.column-empty-copy {
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .task-item {
+  display: block;
   border: 1px solid rgba(108, 78, 39, 0.14);
   border-radius: 0;
   background: var(--card-bg);
@@ -443,6 +507,13 @@ button {
 .task-item.expanded,
 .task-item:hover {
   border-color: rgba(30, 107, 101, 0.24);
+}
+
+.task-item.expanded {
+  display: flex;
+  flex-direction: column;
+  max-height: 50vh;
+  overflow: hidden;
 }
 
 .task-item.dragging,
@@ -558,6 +629,7 @@ button {
 
 .task-details {
   display: none;
+  min-height: 0;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px dashed rgba(108, 78, 39, 0.2);
@@ -566,6 +638,16 @@ button {
 .task-item.expanded .task-details,
 .task-item.expanded .task-actions {
   display: block;
+}
+
+.task-item.expanded .task-details {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.task-item.expanded .task-actions {
+  flex: 0 0 auto;
 }
 
 .task-description {
@@ -704,6 +786,9 @@ button {
 }
 
 .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 34px;
   height: 34px;
   padding: 0;
@@ -883,8 +968,43 @@ body[data-theme="dark"] .notice-bar {
   border-color: rgba(209, 170, 86, 0.2);
 }
 
+body[data-theme="dark"] .toolbar-select,
+body[data-theme="dark"] .modal-form select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%23a89f93' d='M1.2.8 5 4.6 8.8.8 10 2 5 6 0 2z'/%3E%3C/svg%3E");
+}
+
 body[data-theme="dark"] .search-clear:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.board-region,
+.tasks-container,
+.task-item.expanded .task-details,
+.modal-card {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(108, 78, 39, 0.42) transparent;
+}
+
+.board-region::-webkit-scrollbar,
+.tasks-container::-webkit-scrollbar,
+.task-item.expanded .task-details::-webkit-scrollbar,
+.modal-card::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.board-region::-webkit-scrollbar-thumb,
+.tasks-container::-webkit-scrollbar-thumb,
+.task-item.expanded .task-details::-webkit-scrollbar-thumb,
+.modal-card::-webkit-scrollbar-thumb {
+  background: rgba(108, 78, 39, 0.42);
+}
+
+.board-region::-webkit-scrollbar-track,
+.tasks-container::-webkit-scrollbar-track,
+.task-item.expanded .task-details::-webkit-scrollbar-track,
+.modal-card::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 @media (max-width: 1080px) {

@@ -62,7 +62,10 @@
         </div>
       </header>
 
-      <section id="notice-bar" class="notice-bar hidden"></section>
+      <section id="notice-bar" class="notice-bar hidden" role="status" aria-live="polite">
+        <span id="notice-text"></span>
+        <button id="notice-dismiss-btn" class="icon-btn notice-dismiss-btn" type="button" aria-label="Dismiss notice">x</button>
+      </section>
 
       <section id="board-region" class="board-region">
         <div id="kanban-board" class="kanban-board"></div>

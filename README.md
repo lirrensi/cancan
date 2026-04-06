@@ -81,6 +81,8 @@ Run it inside any project folder. CanCan opens the board UI for that folder and 
 
 `build.bat` is preconfigured for MSYS2 MinGW at `C:\msys64\mingw64\bin\gcc.exe` and embeds the Windows icon from `winres/icon.png` before building `cancan.exe`.
 
+After building, run `add_to_path.bat` to copy the local `cancan.exe` into your user bin directory and add that directory to your user `PATH` if needed.
+
 ### Browser-mode build
 
 `build_browser.bat` builds the browser-launching variant.

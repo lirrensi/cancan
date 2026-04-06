@@ -195,7 +195,7 @@ const PATHS = {
 };
 
 const DEFAULT_BOARD_META = {
-  format: "cancan-markdown-kanban-v1",
+  format: "cancan-markdown-kanban-v2",
   agent_editing_guide: [
     "This file is primarily edited through the CanCan UI, so preserve the structure when editing manually.",
     "Keep the YAML front matter block at the top if present.",
@@ -204,10 +204,14 @@ const DEFAULT_BOARD_META = {
     "Each column must use '## Column Name'.",
     "Each task must use '### Task Title'.",
     "Task properties must stay indented under the task using '- key: value' lines.",
-    "Task descriptions must stay inside the indented ```md fenced block.",
+    "Every task must include an indented <cancan_description> block, even when empty.",
+    "Put all task description content only inside <cancan_description> and </cancan_description>.",
     "Do not rewrite unrelated sections or reorder tasks/columns unless intentionally changing the board.",
   ].join("\n"),
 };
+
+const DESCRIPTION_OPEN_TAG = "<cancan_description>";
+const DESCRIPTION_CLOSE_TAG = "</cancan_description>";
 
 const PRIORITY_ORDER = { high: 3, medium: 2, low: 1 };
 const WORKLOAD_ORDER = { Extreme: 4, Hard: 3, Normal: 2, Easy: 1 };
@@ -319,6 +323,8 @@ class MarkdownKanbanParser {
     let inTaskProperties = false;
     let inTaskDescription = false;
     let inCodeBlock = false;
+    let taskDescriptionFence = null;
+    let taskDescriptionMode = null;
     let descriptionLines = [];
     let index = 0;
 
@@ -341,23 +347,41 @@ class MarkdownKanbanParser {
       const line = lines[index];
       const trimmed = line.trim();
 
-      if (trimmed.startsWith("```") && inTaskDescription) {
-        if (trimmed === "```md" || trimmed === "```") {
-          inCodeBlock = !inCodeBlock;
+      if (inTaskDescription && taskDescriptionMode === "xml") {
+        if (trimmed === DESCRIPTION_CLOSE_TAG) {
+          inTaskDescription = false;
+          taskDescriptionMode = null;
+          continue;
+        }
+
+        const cleanLine = line.replace(/^\s{2}/, "");
+        currentTask.description = currentTask.description
+          ? `${currentTask.description}\n${cleanLine}`
+          : cleanLine;
+        continue;
+      }
+
+      if (inTaskDescription && taskDescriptionMode === "fence") {
+        if (!inCodeBlock) {
+          const openingFence = this.parseDescriptionFence(line);
+          if (openingFence) {
+            inCodeBlock = true;
+            taskDescriptionFence = openingFence;
+            continue;
+          }
+        } else if (this.isMatchingDescriptionFence(trimmed, taskDescriptionFence)) {
+          inCodeBlock = false;
+          inTaskDescription = false;
+          taskDescriptionFence = null;
           continue;
         }
       }
 
       if (inCodeBlock && inTaskDescription && currentTask) {
-        if (trimmed === "```") {
-          inCodeBlock = false;
-          inTaskDescription = false;
-        } else {
-          const cleanLine = line.replace(/^\s{4,}/, "");
-          currentTask.description = currentTask.description
-            ? `${currentTask.description}\n${cleanLine}`
-            : cleanLine;
-        }
+        const cleanLine = line.replace(/^\s{4}/, "");
+        currentTask.description = currentTask.description
+          ? `${currentTask.description}\n${cleanLine}`
+          : cleanLine;
         continue;
       }
 
@@ -397,6 +421,9 @@ class MarkdownKanbanParser {
         };
         inTaskProperties = false;
         inTaskDescription = false;
+        inCodeBlock = false;
+        taskDescriptionFence = null;
+        taskDescriptionMode = null;
         continue;
       }
 
@@ -422,6 +449,9 @@ class MarkdownKanbanParser {
           };
           inTaskProperties = true;
           inTaskDescription = false;
+          inCodeBlock = false;
+          taskDescriptionFence = null;
+          taskDescriptionMode = null;
         }
         continue;
       }
@@ -433,10 +463,19 @@ class MarkdownKanbanParser {
         if (this.parseTaskStep(line, currentTask)) {
           continue;
         }
-        if (/^\s+```md/.test(line)) {
+        if (trimmed === DESCRIPTION_OPEN_TAG) {
           inTaskProperties = false;
           inTaskDescription = true;
-          inCodeBlock = true;
+          inCodeBlock = false;
+          taskDescriptionFence = null;
+          taskDescriptionMode = "xml";
+          continue;
+        }
+        if (this.parseDescriptionFence(line)) {
+          inTaskProperties = false;
+          inTaskDescription = true;
+          inCodeBlock = false;
+          taskDescriptionMode = "fence";
           continue;
         }
       }
@@ -450,6 +489,9 @@ class MarkdownKanbanParser {
         currentTask = null;
         inTaskProperties = false;
         inTaskDescription = false;
+        inCodeBlock = false;
+        taskDescriptionFence = null;
+        taskDescriptionMode = null;
         index -= 1;
       }
     }
@@ -480,13 +522,7 @@ class MarkdownKanbanParser {
       for (const task of column.tasks) {
         markdown += `### ${task.title}\n\n`;
         markdown += this.generateTaskProperties(task);
-        if (task.description && task.description.trim()) {
-          markdown += "    ```md\n";
-          for (const line of task.description.trim().split("\n")) {
-            markdown += `    ${line}\n`;
-          }
-          markdown += "    ```\n";
-        }
+        markdown += this.generateTaskDescription(task.description);
         markdown += "\n";
       }
     }
@@ -506,6 +542,18 @@ class MarkdownKanbanParser {
         out += `      - ${step.completed ? "[x]" : "[ ]"} ${step.text}\n`;
       }
     }
+    return out;
+  }
+
+  static generateTaskDescription(description) {
+    const normalized = String(description || "").trim();
+    let out = `  ${DESCRIPTION_OPEN_TAG}\n`;
+    if (normalized) {
+      for (const line of normalized.split("\n")) {
+        out += `  ${line}\n`;
+      }
+    }
+    out += `  ${DESCRIPTION_CLOSE_TAG}\n`;
     return out;
   }
 
@@ -620,6 +668,33 @@ class MarkdownKanbanParser {
     column.tasks.push(task);
   }
 
+  static parseDescriptionFence(line) {
+    const match = line.match(/^\s{4,}([`~]{3,})([A-Za-z0-9_-]+)?\s*$/);
+    if (!match) {
+      return null;
+    }
+    return match[1];
+  }
+
+  static isMatchingDescriptionFence(trimmed, fence) {
+    if (!fence) {
+      return false;
+    }
+    const match = trimmed.match(/^([`~]{3,})\s*$/);
+    return Boolean(match && match[1][0] === fence[0] && match[1].length >= fence.length);
+  }
+
+  static makeDescriptionFence(description) {
+    const text = String(description || "");
+    const longestBacktickRun = Math.max(0, ...(text.match(/`+/g) || []).map(run => run.length));
+    const longestTildeRun = Math.max(0, ...(text.match(/~+/g) || []).map(run => run.length));
+
+    if (longestBacktickRun <= longestTildeRun) {
+      return "`".repeat(Math.max(3, longestBacktickRun + 1));
+    }
+    return "~".repeat(Math.max(3, longestTildeRun + 1));
+  }
+
   static isTaskTitle(line, trimmed) {
     if (line.startsWith("- ") && (trimmed.match(/^\s*- (due|tags|priority|workload|steps|defaultExpanded):/) || /^\s{6,}- \[([ x])\]/.test(line))) {
       return false;
@@ -710,6 +785,7 @@ async function init() {
 function bindStaticEvents() {
   state.client.onStatusChanged(setSocketStatus);
   document.getElementById("theme-toggle-btn").addEventListener("click", cycleThemePreference);
+  document.getElementById("notice-dismiss-btn").addEventListener("click", dismissNotice);
   document.getElementById("create-board-btn").addEventListener("click", () => createBoardFlow());
   document.getElementById("rename-board-btn").addEventListener("click", () => renameBoardFlow());
   document.getElementById("delete-board-btn").addEventListener("click", () => deleteBoardFlow());
@@ -1163,6 +1239,7 @@ function renderAddColumnColumn() {
 
 function renderColumn(column) {
   const tasks = sortTasks(filterTasks(column.tasks));
+  const isActuallyEmpty = column.tasks.length === 0;
   return `
     <section class="kanban-column ${column.archived ? "archived" : ""}" data-column-id="${escapeHtml(column.id)}">
       <div class="column-header" draggable="true">
@@ -1171,16 +1248,34 @@ function renderColumn(column) {
         </div>
         <div class="column-meta">
           <span class="count-pill">${tasks.length}</span>
-          <button class="ghost-btn small-btn" data-toggle-archive="${escapeHtml(column.id)}">${column.archived ? "Unarchive" : "Archive"}</button>
+          <button class="icon-btn small-icon-btn" data-toggle-archive="${escapeHtml(column.id)}" aria-label="${column.archived ? "Unarchive column" : "Archive column"}" title="${column.archived ? "Unarchive column" : "Archive column"}">
+            ${renderArchiveIcon(column.archived)}
+          </button>
         </div>
       </div>
       <div class="tasks-container" data-tasks-column="${escapeHtml(column.id)}">
         ${tasks.map(task => renderTask(task, column.id)).join("")}
+        ${isActuallyEmpty ? renderEmptyColumnState(column.id) : ""}
       </div>
       <div class="column-footer">
         <button class="ghost-btn" data-add-task="${escapeHtml(column.id)}">+ Add Task</button>
       </div>
     </section>
+  `;
+}
+
+function renderArchiveIcon(archived) {
+  return archived
+    ? '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4h14v3H3V4Zm1 5h12v7H4V9Zm3 2v1h6v-1H7Z" fill="currentColor"/></svg>'
+    : '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4h14v3H3V4Zm1 5h12v7H4V9Zm3 2v1h6v-1H7Zm3-7 3 3h-2v3H9V7H7l3-3Z" fill="currentColor"/></svg>';
+}
+
+function renderEmptyColumnState(columnId) {
+  return `
+    <div class="column-empty-state">
+      <div class="column-empty-copy">This column is empty.</div>
+      <button class="danger-btn small-btn" type="button" data-delete-empty-column="${escapeHtml(columnId)}">Delete Column</button>
+    </div>
   `;
 }
 
@@ -1281,6 +1376,12 @@ function bindBoardEvents() {
       column.archived = !column.archived;
       await saveCurrentBoard();
       renderBoard();
+    });
+  }
+
+  for (const button of document.querySelectorAll("[data-delete-empty-column]")) {
+    button.addEventListener("click", async event => {
+      await deleteEmptyColumnFlow(event.currentTarget.dataset.deleteEmptyColumn);
     });
   }
 
@@ -1582,6 +1683,22 @@ async function deleteTaskFlow(columnId, taskId) {
   renderBoard();
 }
 
+async function deleteEmptyColumnFlow(columnId) {
+  const column = findColumn(columnId);
+  if (!column || column.tasks.length > 0) {
+    return;
+  }
+
+  const confirmed = await confirmAction("Delete column", `Delete empty column ${column.title}?`, "Delete");
+  if (!confirmed) {
+    return;
+  }
+
+  state.currentBoard.columns = state.currentBoard.columns.filter(item => item.id !== columnId);
+  await saveCurrentBoard();
+  renderBoard();
+}
+
 async function deleteCurrentEditingTask() {
   if (state.taskModal.mode !== "edit") {
     return;
@@ -1657,10 +1774,14 @@ function resolveConfirm(value) {
 
 function flashNotice(message, isError) {
   const bar = document.getElementById("notice-bar");
-  bar.textContent = message;
+  document.getElementById("notice-text").textContent = message;
   bar.classList.remove("hidden");
   bar.style.background = isError ? "#f7ddd6" : "#fbeed6";
   bar.style.color = isError ? "#7c2b1d" : "#6c4b1f";
+}
+
+function dismissNotice() {
+  document.getElementById("notice-bar").classList.add("hidden");
 }
 
 function showFatal(message) {
