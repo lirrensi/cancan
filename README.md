@@ -4,7 +4,7 @@
 
 CanCan is a small local issue tracker and kanban app that lives inside the folder you are already working in.
 
-Current release version: `0.1.2`
+Current release version: `0.1.3`
 
 It exists for one very specific workflow: you want a clean UI for managing tasks, but you also want the underlying data to stay local, readable, and editable by both humans and coding agents.
 
@@ -49,7 +49,7 @@ Release builds are produced by GitHub Actions for:
 - Linux amd64 and arm64
 - macOS amd64 and arm64
 
-Release publishing is triggered by pushing either a `v*` tag or a bare semver tag like `0.1.2`.
+Release publishing is triggered by pushing either a `v*` tag or a bare semver tag like `0.1.3`.
 
 Use one of these install commands.
 
