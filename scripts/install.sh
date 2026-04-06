@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO="${CANCAN_REPO:-lirrensi/cancan}"
+REPO="lirrensi/cancan"
 VERSION="${CANCAN_VERSION:-latest}"
 INSTALL_DIR="${CANCAN_INSTALL_DIR:-$HOME/.local/bin}"
 

@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$Repo = if ($env:CANCAN_REPO) { $env:CANCAN_REPO } else { 'lirrensi/cancan' }
+$Repo = 'lirrensi/cancan'
 $Version = if ($env:CANCAN_VERSION) { $env:CANCAN_VERSION } else { 'latest' }
 $InstallDir = if ($env:CANCAN_INSTALL_DIR) { $env:CANCAN_INSTALL_DIR } else { Join-Path $HOME '.local\bin' }
 

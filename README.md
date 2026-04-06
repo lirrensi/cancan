@@ -50,15 +50,13 @@ Use one of these install commands.
 ### PowerShell
 
 ```powershell
-$env:CANCAN_REPO = "lirrensi/cancan"
-irm "https://raw.githubusercontent.com/$env:CANCAN_REPO/main/scripts/install.ps1" | iex
+irm "https://raw.githubusercontent.com/lirrensi/cancan/main/scripts/install.ps1" | iex
 ```
 
 ### macOS / Linux
 
 ```bash
-export CANCAN_REPO="lirrensi/cancan"
-curl -fsSL "https://raw.githubusercontent.com/$CANCAN_REPO/main/scripts/install.sh" | sh
+curl -fsSL "https://raw.githubusercontent.com/lirrensi/cancan/main/scripts/install.sh" | sh
 ```
 
 The installer downloads the latest release for your platform, installs `cancan` into a user-local bin directory, and adds that directory to your `PATH` if needed.
@@ -93,5 +91,5 @@ This makes it useful as a lightweight local planning layer for coding projects.
 
 ## Acknowledgements
 
-- Built on top of `Luminka` for the local desktop/runtime model
-- Inspired by the `markdown-kanban` extension, whose board style and workflow shaped both the UI direction and the markdown implementation
+- Built on top of [`Luminka`](https://github.com/lirrensi/luminka), a lightweight Electron/Tauri alternative for local desktop apps
+- Frontend code and board workflow are based on [`markdown-kanban`](https://github.com/holooooo/markdown-kanban)
