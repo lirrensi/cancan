@@ -110,6 +110,10 @@ class LuminkaClient {
     await this.request({ event: "fs_watch", path });
   }
 
+  async unwatch(path) {
+    await this.request({ event: "fs_unwatch", path });
+  }
+
   onFileChanged(listener) {
     this.fileListeners.add(listener);
     return () => this.fileListeners.delete(listener);
@@ -222,6 +226,9 @@ const state = {
   promptResolver: null,
   confirmResolver: null,
   watched: new Set(),
+  watcherReady: false,
+  expectedFileContents: new Map(),
+  refreshQueue: Promise.resolve(),
   themePreference: "auto",
   systemThemeQuery: null,
   socketStatus: "connecting",
@@ -767,7 +774,7 @@ async function bootstrapWorkspace() {
   const configExists = await state.client.exists(PATHS.config);
   if (!configExists) {
     const board = defaultBoard();
-    await state.client.writeText(`${PATHS.boardsDir}/inbox.md`, MarkdownKanbanParser.generateMarkdown(board));
+    await writeTextManaged(`${PATHS.boardsDir}/inbox.md`, MarkdownKanbanParser.generateMarkdown(board));
     await writeJSON(PATHS.config, defaultConfig());
     return;
   }
@@ -775,7 +782,7 @@ async function bootstrapWorkspace() {
   const boardsDirExists = await state.client.exists(PATHS.boardsDir);
   if (!boardsDirExists) {
     const board = defaultBoard();
-    await state.client.writeText(`${PATHS.boardsDir}/inbox.md`, MarkdownKanbanParser.generateMarkdown(board));
+    await writeTextManaged(`${PATHS.boardsDir}/inbox.md`, MarkdownKanbanParser.generateMarkdown(board));
   }
 }
 
@@ -788,7 +795,121 @@ async function readJSON(path, fallback = null) {
 }
 
 async function writeJSON(path, value) {
-  await state.client.writeText(path, `${JSON.stringify(value, null, 2)}\n`);
+  await writeTextManaged(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function writeTextManaged(path, data) {
+  state.expectedFileContents.set(path, data);
+  try {
+    await state.client.writeText(path, data);
+  } catch (error) {
+    state.expectedFileContents.delete(path);
+    throw error;
+  }
+}
+
+async function syncWatchedPaths(paths) {
+  const desired = new Set(paths);
+
+  for (const path of state.watched) {
+    if (desired.has(path)) {
+      continue;
+    }
+    try {
+      await state.client.unwatch(path);
+    } catch {
+      // ignore optional unwatch failures
+    }
+    state.watched.delete(path);
+    state.expectedFileContents.delete(path);
+  }
+
+  for (const path of desired) {
+    if (state.watched.has(path)) {
+      continue;
+    }
+    try {
+      await state.client.watch(path);
+      state.watched.add(path);
+    } catch {
+      // ignore optional watch failures
+    }
+  }
+}
+
+async function queueExternalRefresh(path) {
+  state.refreshQueue = state.refreshQueue
+    .catch(() => {})
+    .then(() => refreshFromFilesystem(path));
+  return state.refreshQueue;
+}
+
+async function shouldIgnoreWatchedChange(path) {
+  if (!state.expectedFileContents.has(path)) {
+    return false;
+  }
+
+  const expected = state.expectedFileContents.get(path);
+  let current = null;
+  try {
+    current = await state.client.readText(path);
+  } catch {
+    current = null;
+  }
+
+  if (current === expected) {
+    state.expectedFileContents.delete(path);
+    return true;
+  }
+
+  state.expectedFileContents.delete(path);
+  return false;
+}
+
+function clearCurrentBoard() {
+  state.currentBoard = null;
+  state.currentBoardPath = null;
+  state.currentBoardSlug = null;
+  state.expandedTasks = new Set();
+  renderAll();
+}
+
+async function refreshFromFilesystem(path) {
+  if (await shouldIgnoreWatchedChange(path)) {
+    return;
+  }
+
+  const currentSlug = state.currentBoardSlug;
+  const currentPath = state.currentBoardPath;
+
+  await loadBoards();
+
+  if (path === PATHS.boardsDir) {
+    renderSidebar();
+    return;
+  }
+
+  if (!currentSlug) {
+    renderSidebar();
+    return;
+  }
+
+  const currentStillExists = state.boards.some(board => board.slug === currentSlug);
+  if (!currentStillExists) {
+    if (state.boards[0]) {
+      await openBoard(state.boards[0].slug, { persistSelection: false });
+    } else {
+      clearCurrentBoard();
+    }
+    return;
+  }
+
+  if (path === currentPath) {
+    await openBoard(currentSlug, { persistSelection: false });
+    return;
+  }
+
+  renderSidebar();
 }
 
 async function loadBoards() {
@@ -820,6 +941,10 @@ async function loadBoards() {
 
   boards.sort((left, right) => left.title.localeCompare(right.title));
   state.boards = boards;
+
+  if (state.watcherReady) {
+    await syncWatchedPaths([PATHS.boardsDir, ...boards.map(board => board.path)]);
+  }
 }
 
 async function loadInitialBoard() {
@@ -829,7 +954,7 @@ async function loadInitialBoard() {
 
   if (!board) {
     const fallback = defaultBoard();
-    await state.client.writeText(`${PATHS.boardsDir}/inbox.md`, MarkdownKanbanParser.generateMarkdown(fallback));
+    await writeTextManaged(`${PATHS.boardsDir}/inbox.md`, MarkdownKanbanParser.generateMarkdown(fallback));
     await loadBoards();
     return loadInitialBoard();
   }
@@ -837,7 +962,8 @@ async function loadInitialBoard() {
   await openBoard(board.slug);
 }
 
-async function openBoard(slug) {
+async function openBoard(slug, options = {}) {
+  const { persistSelection = true } = options;
   const boardRef = state.boards.find(item => item.slug === slug);
   if (!boardRef) {
     return;
@@ -851,7 +977,9 @@ async function openBoard(slug) {
   state.currentBoardSlug = boardRef.slug;
   state.expandedTasks = new Set();
   hydrateDefaultExpandedTasks();
-  await updateConfig({ lastBoardSlug: slug });
+  if (persistSelection) {
+    await updateConfig({ lastBoardSlug: slug });
+  }
   renderAll();
 }
 
@@ -878,7 +1006,7 @@ async function saveCurrentBoard() {
     return;
   }
   state.currentBoard = normalizeBoard(state.currentBoard);
-  await state.client.writeText(state.currentBoardPath, MarkdownKanbanParser.generateMarkdown(state.currentBoard));
+  await writeTextManaged(state.currentBoardPath, MarkdownKanbanParser.generateMarkdown(state.currentBoard));
   await loadBoards();
   renderSidebar();
 }
@@ -891,7 +1019,7 @@ async function createBoardFlow() {
 
   const slug = await uniqueSlugForTitle(title);
   const board = defaultBoard(title);
-  await state.client.writeText(`${PATHS.boardsDir}/${slug}.md`, MarkdownKanbanParser.generateMarkdown(board));
+  await writeTextManaged(`${PATHS.boardsDir}/${slug}.md`, MarkdownKanbanParser.generateMarkdown(board));
   await loadBoards();
   await openBoard(slug);
   flashNotice(`Created board ${title}`, false);
@@ -912,7 +1040,7 @@ async function renameBoardFlow() {
   state.currentBoard.title = nextTitle;
 
   const nextPath = `${PATHS.boardsDir}/${nextSlug}.md`;
-  await state.client.writeText(nextPath, MarkdownKanbanParser.generateMarkdown(state.currentBoard));
+  await writeTextManaged(nextPath, MarkdownKanbanParser.generateMarkdown(state.currentBoard));
   if (previousPath !== nextPath) {
     await state.client.remove(previousPath);
   }
@@ -940,7 +1068,7 @@ async function deleteBoardFlow() {
 
   if (!state.boards.length) {
     const board = defaultBoard();
-    await state.client.writeText(`${PATHS.boardsDir}/inbox.md`, MarkdownKanbanParser.generateMarkdown(board));
+    await writeTextManaged(`${PATHS.boardsDir}/inbox.md`, MarkdownKanbanParser.generateMarkdown(board));
     await loadBoards();
   }
 
@@ -1541,31 +1669,20 @@ function showFatal(message) {
 }
 
 async function startWatching() {
-  for (const path of [PATHS.boardsDir, PATHS.config]) {
-    if (state.watched.has(path)) {
-      continue;
-    }
-    try {
-      await state.client.watch(path);
-      state.watched.add(path);
-    } catch {
-      // ignore optional watch failures
-    }
+  if (state.watcherReady) {
+    return;
   }
 
-  state.client.onFileChanged(async path => {
-    if (!path.startsWith(PATHS.boardsDir) && path !== PATHS.config) {
+  state.watcherReady = true;
+  await syncWatchedPaths([PATHS.boardsDir, ...state.boards.map(board => board.path)]);
+
+  state.client.onFileChanged(path => {
+    if (path !== PATHS.boardsDir && !path.startsWith(`${PATHS.boardsDir}/`)) {
       return;
     }
-    try {
-      const currentSlug = state.currentBoardSlug;
-      await loadBoards();
-      if (currentSlug && state.boards.some(board => board.slug === currentSlug)) {
-        await openBoard(currentSlug);
-      }
-    } catch {
+    queueExternalRefresh(path).catch(() => {
       // ignore watch refresh failures
-    }
+    });
   });
 }
 
