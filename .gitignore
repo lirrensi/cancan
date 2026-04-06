@@ -3,7 +3,10 @@
 *.exe
 *.syso
 rsrc
+/cancan
+/cancan-*
 
+winres_verify/
 winres_check/
 winres_extracted/
 winres_extracted_after/
