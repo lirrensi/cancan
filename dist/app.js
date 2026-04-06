@@ -5,6 +5,7 @@ class LuminkaClient {
     this.nextRequestId = 1;
     this.pending = new Map();
     this.fileListeners = new Set();
+    this.statusListeners = new Set();
   }
 
   async connect() {
@@ -19,6 +20,7 @@ class LuminkaClient {
     const socket = new WebSocket(url);
     socket.binaryType = "arraybuffer";
     this.socket = socket;
+    this.emitStatus("connecting");
 
     this.connectPromise = new Promise((resolve, reject) => {
       const cleanup = () => {
@@ -30,6 +32,7 @@ class LuminkaClient {
       const onOpen = () => {
         cleanup();
         this.connectPromise = null;
+        this.emitStatus("active");
         resolve();
       };
 
@@ -37,6 +40,7 @@ class LuminkaClient {
         cleanup();
         this.connectPromise = null;
         this.socket = null;
+        this.emitStatus("offline");
         reject(new Error("Failed to connect to Luminka runtime"));
       };
 
@@ -44,6 +48,7 @@ class LuminkaClient {
         cleanup();
         this.connectPromise = null;
         this.socket = null;
+        this.emitStatus("offline");
         this.failAll(new Error("Luminka connection closed"));
         reject(new Error("Luminka connection closed"));
       };
@@ -56,6 +61,7 @@ class LuminkaClient {
     socket.addEventListener("message", event => this.handleMessage(event));
     socket.addEventListener("close", () => {
       this.socket = null;
+      this.emitStatus("offline");
       this.failAll(new Error("Luminka connection closed"));
     });
 
@@ -107,6 +113,17 @@ class LuminkaClient {
   onFileChanged(listener) {
     this.fileListeners.add(listener);
     return () => this.fileListeners.delete(listener);
+  }
+
+  onStatusChanged(listener) {
+    this.statusListeners.add(listener);
+    return () => this.statusListeners.delete(listener);
+  }
+
+  emitStatus(status) {
+    for (const listener of this.statusListeners) {
+      listener(status);
+    }
   }
 
   encodeFrame(header, payload = new Uint8Array()) {
@@ -207,6 +224,8 @@ const state = {
   watched: new Set(),
   themePreference: "auto",
   systemThemeQuery: null,
+  socketStatus: "connecting",
+  currentSortDirection: "asc",
 };
 
 function getStoredThemePreference() {
@@ -245,6 +264,15 @@ function updateThemeButton() {
   button.textContent = labels[state.themePreference] || labels.auto;
 }
 
+function renderSocketStatus() {
+  const element = document.getElementById("socket-status");
+  if (!element) {
+    return;
+  }
+  element.dataset.status = state.socketStatus;
+  element.textContent = `Socket: ${state.socketStatus}`;
+}
+
 function applyTheme() {
   document.body.dataset.theme = getResolvedTheme();
   document.body.dataset.themePreference = state.themePreference;
@@ -268,6 +296,11 @@ function initTheme() {
     }
   });
   applyTheme();
+}
+
+function setSocketStatus(status) {
+  state.socketStatus = status;
+  renderSocketStatus();
 }
 
 class MarkdownKanbanParser {
@@ -652,6 +685,7 @@ function normalizeBoard(board) {
 async function init() {
   initTheme();
   bindStaticEvents();
+  renderSocketStatus();
 
   try {
     state.appInfo = await state.client.appInfo();
@@ -661,18 +695,17 @@ async function init() {
     await loadInitialBoard();
     renderAll();
     await startWatching();
-    flashNotice(`Connected to ${state.appInfo.mode} workspace`, false);
   } catch (error) {
     showFatal(error instanceof Error ? error.message : String(error));
   }
 }
 
 function bindStaticEvents() {
+  state.client.onStatusChanged(setSocketStatus);
   document.getElementById("theme-toggle-btn").addEventListener("click", cycleThemePreference);
   document.getElementById("create-board-btn").addEventListener("click", () => createBoardFlow());
   document.getElementById("rename-board-btn").addEventListener("click", () => renameBoardFlow());
   document.getElementById("delete-board-btn").addEventListener("click", () => deleteBoardFlow());
-  document.getElementById("add-column-btn").addEventListener("click", () => addColumnFlow());
   document.getElementById("search-input").addEventListener("input", event => {
     state.currentFilter = event.target.value;
     syncSearchClearButton();
@@ -681,6 +714,10 @@ function bindStaticEvents() {
   document.getElementById("search-clear-btn").addEventListener("click", clearFilters);
   document.getElementById("sort-select").addEventListener("change", event => {
     state.currentSort = event.target.value;
+    renderBoard();
+  });
+  document.getElementById("sort-direction-select").addEventListener("change", event => {
+    state.currentSortDirection = event.target.value;
     renderBoard();
   });
 
@@ -770,13 +807,15 @@ async function loadBoards() {
     const path = `${PATHS.boardsDir}/${entry}`;
     let title = slug;
     let parseError = false;
+    let taskCount = 0;
     try {
       const parsed = MarkdownKanbanParser.parseMarkdown(await state.client.readText(path));
       title = parsed.title || slug;
+      taskCount = (parsed.columns || []).reduce((sum, column) => sum + (column.tasks?.length || 0), 0);
     } catch {
       parseError = true;
     }
-    boards.push({ slug, title, path, parseError });
+    boards.push({ slug, title, path, parseError, taskCount });
   }
 
   boards.sort((left, right) => left.title.localeCompare(right.title));
@@ -959,11 +998,8 @@ function renderSidebar() {
 
   boardList.innerHTML = state.boards.map(board => `
     <button class="board-item ${board.slug === state.currentBoardSlug ? "active" : ""}" data-board-slug="${escapeHtml(board.slug)}">
-      <span class="board-item-copy">
-        <span class="board-item-title">${escapeHtml(board.title)}</span>
-        <span class="board-item-meta">${board.parseError ? "Parse error" : board.slug}</span>
-      </span>
-      <span class="count-pill">md</span>
+      <span class="board-item-title">${escapeHtml(board.title)}</span>
+      <span class="board-item-meta">${board.parseError ? "!" : board.taskCount}</span>
     </button>
   `).join("");
 
@@ -976,12 +1012,7 @@ function renderSidebar() {
 }
 
 function renderBoard() {
-  document.getElementById("board-title").textContent = state.currentBoard?.title || "No board";
   syncSearchClearButton();
-  const descriptionElement = document.getElementById("board-description");
-  const description = state.currentBoard?.description?.trim() || "";
-  descriptionElement.textContent = description;
-  descriptionElement.classList.toggle("hidden", !description);
   const boardElement = document.getElementById("kanban-board");
 
   if (!state.currentBoard) {
@@ -989,13 +1020,17 @@ function renderBoard() {
     return;
   }
 
-  const normalColumns = state.currentBoard.columns.filter(column => !column.archived);
-  const archivedColumns = state.currentBoard.columns.filter(column => column.archived);
-  const orderedColumns = [...normalColumns, ...archivedColumns];
-
-  boardElement.innerHTML = orderedColumns.map(column => renderColumn(column)).join("");
+  boardElement.innerHTML = `${state.currentBoard.columns.map(column => renderColumn(column)).join("")}${renderAddColumnColumn()}`;
 
   bindBoardEvents();
+}
+
+function renderAddColumnColumn() {
+  return `
+    <button class="add-column-column" type="button" data-add-column-inline aria-label="Add column">
+      <span class="add-column-plus">+</span>
+    </button>
+  `;
 }
 
 function renderColumn(column) {
@@ -1084,6 +1119,10 @@ function renderTaskSteps(task, columnId) {
 }
 
 function bindBoardEvents() {
+  for (const button of document.querySelectorAll("[data-add-column-inline]")) {
+    button.addEventListener("click", () => addColumnFlow());
+  }
+
   for (const button of document.querySelectorAll("[data-add-task]")) {
     button.addEventListener("click", event => openTaskModal("create", event.currentTarget.dataset.addTask));
   }
@@ -1180,25 +1219,56 @@ function filterTasks(tasks) {
 
 function sortTasks(tasks) {
   const sorted = [...tasks];
+  let comparator = null;
+
   switch (state.currentSort) {
     case "title":
-      return sorted.sort((left, right) => left.title.localeCompare(right.title));
+      comparator = (left, right) => left.title.localeCompare(right.title);
+      break;
     case "deadline":
-      return sorted.sort((left, right) => {
-        if (!left.dueDate && !right.dueDate) return 0;
-        if (!left.dueDate) return 1;
-        if (!right.dueDate) return -1;
-        return new Date(left.dueDate) - new Date(right.dueDate);
-      });
+      comparator = (left, right) => compareNullable(left.dueDate, right.dueDate, value => new Date(value).getTime());
+      break;
     case "priority":
-      return sorted.sort((left, right) => (PRIORITY_ORDER[right.priority] || 0) - (PRIORITY_ORDER[left.priority] || 0));
+      comparator = (left, right) => compareNullable(left.priority, right.priority, value => PRIORITY_ORDER[value] || 0);
+      break;
     case "workload":
-      return sorted.sort((left, right) => (WORKLOAD_ORDER[right.workload] || 0) - (WORKLOAD_ORDER[left.workload] || 0));
+      comparator = (left, right) => compareNullable(left.workload, right.workload, value => WORKLOAD_ORDER[value] || 0);
+      break;
     case "tags":
-      return sorted.sort((left, right) => ((left.tags && left.tags[0]) || "").localeCompare((right.tags && right.tags[0]) || ""));
+      comparator = (left, right) => compareNullable((left.tags && left.tags[0]) || "", (right.tags && right.tags[0]) || "", value => value);
+      break;
     default:
       return sorted;
   }
+
+  sorted.sort((left, right) => {
+    const direction = state.currentSortDirection === "desc" ? -1 : 1;
+    return comparator(left, right) * direction;
+  });
+
+  return sorted;
+}
+
+function compareNullable(left, right, normalize) {
+  const leftMissing = left === undefined || left === null || left === "";
+  const rightMissing = right === undefined || right === null || right === "";
+  if (leftMissing && rightMissing) {
+    return 0;
+  }
+  if (leftMissing) {
+    return 1;
+  }
+  if (rightMissing) {
+    return -1;
+  }
+
+  const leftValue = normalize(left);
+  const rightValue = normalize(right);
+
+  if (typeof leftValue === "string" && typeof rightValue === "string") {
+    return leftValue.localeCompare(rightValue);
+  }
+  return leftValue - rightValue;
 }
 
 function getDeadlineInfo(dueDate) {

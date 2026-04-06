@@ -10,9 +10,15 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand-block">
-        <div class="brand-kicker">Portable kanban</div>
-        <h1>CanCan</h1>
+        <div class="brand-row">
+          <div>
+            <div class="brand-kicker">Portable kanban</div>
+            <h1>CanCan</h1>
+          </div>
+          <button id="theme-toggle-btn" class="ghost-btn theme-toggle-btn">Theme: Auto</button>
+        </div>
         <p id="workspace-root" class="workspace-root">Loading workspace...</p>
+        <p id="socket-status" class="workspace-meta">Socket: connecting</p>
       </div>
 
       <div class="sidebar-section">
@@ -24,26 +30,23 @@
       </div>
 
       <div class="sidebar-section sidebar-actions">
-        <button id="rename-board-btn" class="secondary-btn">Rename Board</button>
-        <button id="delete-board-btn" class="danger-btn">Delete Board</button>
+        <details class="board-menu">
+          <summary class="ghost-btn board-menu-toggle">Board</summary>
+          <div class="board-menu-panel">
+            <button id="rename-board-btn" class="secondary-btn">Rename Board</button>
+            <button id="delete-board-btn" class="danger-btn">Delete Board</button>
+          </div>
+        </details>
       </div>
     </aside>
 
     <main class="main-pane">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Workspace board</p>
-          <div class="board-title-row">
-            <h2 id="board-title">Loading...</h2>
-            <div class="search-shell">
-              <input id="search-input" class="toolbar-input search-input" type="text" placeholder="Search board">
-              <button id="search-clear-btn" class="search-clear hidden" type="button" aria-label="Clear search">x</button>
-            </div>
-          </div>
-          <div id="board-description" class="board-description hidden"></div>
+        <div class="search-shell search-shell-wide">
+          <input id="search-input" class="toolbar-input search-input" type="text" placeholder="Search tasks, tags, dates, steps">
+          <button id="search-clear-btn" class="search-clear hidden" type="button" aria-label="Clear search">x</button>
         </div>
         <div class="toolbar">
-          <button id="theme-toggle-btn" class="ghost-btn">Theme: Auto</button>
           <select id="sort-select" class="toolbar-select">
             <option value="none">Default sort</option>
             <option value="title">Sort by name</option>
@@ -52,7 +55,10 @@
             <option value="workload">Sort by workload</option>
             <option value="tags">Sort by tags</option>
           </select>
-          <button id="add-column-btn" class="primary-btn">+ Add Column</button>
+          <select id="sort-direction-select" class="toolbar-select">
+            <option value="asc">Asc</option>
+            <option value="desc">Desc</option>
+          </select>
         </div>
       </header>
 
