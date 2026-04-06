@@ -224,6 +224,14 @@ button {
   padding-top: 16px;
 }
 
+.ui-version {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .board-menu {
   position: relative;
 }
@@ -248,8 +256,8 @@ button {
 }
 
 .main-pane {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -363,27 +371,38 @@ button {
 
 .board-region {
   display: flex;
-  padding: 6px 20px 20px;
+  flex: 1 1 auto;
+  padding: 6px 20px 0;
+  box-sizing: border-box;
+  align-items: stretch;
   min-height: 0;
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-gutter: stable;
 }
 
 .kanban-board {
   display: flex;
+  flex: 1 1 auto;
+  align-self: stretch;
   align-items: stretch;
   gap: 12px;
+  padding-bottom: 0;
+  box-sizing: border-box;
   min-width: max-content;
   height: 100%;
+  min-height: 0;
 }
 
 .kanban-column {
   flex: 0 0 300px;
   display: flex;
   flex-direction: column;
+  align-self: stretch;
   height: 100%;
   min-height: 0;
+  margin-bottom: 10px;
   border: 1px solid rgba(108, 78, 39, 0.12);
   border-radius: var(--radius);
   background: var(--column-bg);
@@ -394,6 +413,7 @@ button {
   flex: 0 0 44px;
   height: 44px;
   min-height: 44px;
+  margin-bottom: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -478,6 +498,8 @@ button {
   min-height: 0;
   padding: 10px;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 .column-empty-state {
@@ -496,6 +518,7 @@ button {
 
 .task-item {
   display: block;
+  min-width: 0;
   border: 1px solid rgba(108, 78, 39, 0.14);
   border-radius: 0;
   background: var(--card-bg);
@@ -512,6 +535,7 @@ button {
 .task-item.expanded {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   max-height: 50vh;
   overflow: hidden;
 }
@@ -536,9 +560,10 @@ button {
 
 .task-header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
   align-items: start;
+  min-width: 0;
 }
 
 .task-drag-handle,
@@ -549,12 +574,24 @@ button {
 }
 
 .task-title {
+  display: -webkit-box;
   font-weight: 600;
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  max-height: calc(1.35em * 3);
 }
 
 .task-title-button {
   display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -571,6 +608,9 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
+  justify-self: end;
+  flex: 0 0 auto;
+  align-self: start;
 }
 
 .task-priority {
@@ -602,12 +642,14 @@ button {
   justify-content: space-between;
   gap: 10px;
   margin-top: 8px;
+  min-width: 0;
 }
 
 .task-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  min-width: 0;
 }
 
 .task-tag,
@@ -630,6 +672,7 @@ button {
 .task-details {
   display: none;
   min-height: 0;
+  min-width: 0;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px dashed rgba(108, 78, 39, 0.2);
@@ -642,17 +685,28 @@ button {
 
 .task-item.expanded .task-details {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  padding-right: 4px;
+  overflow-x: hidden;
+  padding-right: 12px;
+  scrollbar-gutter: stable;
 }
 
 .task-item.expanded .task-actions {
-  flex: 0 0 auto;
+  align-self: start;
 }
 
 .task-description {
   white-space: pre-wrap;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.task-item:not(.expanded) .task-tags-row,
+.task-item:not(.expanded) .task-details,
+.task-item:not(.expanded) .task-actions {
+  display: none;
 }
 
 .task-info {
@@ -677,6 +731,7 @@ button {
 .task-actions {
   display: none;
   margin-top: 12px;
+  min-width: 0;
 }
 
 .action-row,

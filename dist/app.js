@@ -215,6 +215,7 @@ const DESCRIPTION_CLOSE_TAG = "</cancan_description>";
 
 const PRIORITY_ORDER = { high: 3, medium: 2, low: 1 };
 const WORKLOAD_ORDER = { Extreme: 4, Hard: 3, Normal: 2, Easy: 1 };
+const UI_VERSION = "v0.1.1";
 
 const state = {
   client: new LuminkaClient(),
@@ -282,6 +283,14 @@ function renderSocketStatus() {
   }
   element.dataset.status = state.socketStatus;
   element.textContent = `Socket: ${state.socketStatus}`;
+}
+
+function renderUiVersion() {
+  const element = document.getElementById("ui-version");
+  if (!element) {
+    return;
+  }
+  element.textContent = `UI version: ${UI_VERSION}`;
 }
 
 function applyTheme() {
@@ -768,6 +777,7 @@ async function init() {
   initTheme();
   bindStaticEvents();
   renderSocketStatus();
+  renderUiVersion();
 
   try {
     state.appInfo = await state.client.appInfo();
@@ -1283,6 +1293,11 @@ function renderTask(task, columnId) {
   const expanded = state.expandedTasks.has(task.id);
   const deadline = getDeadlineInfo(task.dueDate);
   const progress = getStepsProgress(task.steps);
+  const hasTagsRow = Boolean(task.workload || (task.tags || []).length || deadline);
+  const hasInfo = Boolean(task.dueDate || task.workload);
+  const hasSteps = Boolean(task.steps && task.steps.length);
+  const hasDescription = Boolean(task.description);
+  const hasDetails = hasDescription || hasSteps || hasInfo;
   return `
     <article class="task-item ${expanded ? "expanded" : ""}" data-task-id="${escapeHtml(task.id)}" data-column-id="${escapeHtml(columnId)}">
       <div class="task-header">
@@ -1295,21 +1310,27 @@ function renderTask(task, columnId) {
           ${task.priority ? `<span class="task-priority priority-${escapeHtml(task.priority)}"></span>` : ""}
         </div>
       </div>
-      <div class="task-tags-row">
-        <div class="task-tags">
-          ${task.workload ? `<span class="task-tag workload-${task.workload.toLowerCase()}">${escapeHtml(task.workload)}</span>` : ""}
-          ${(task.tags || []).map(tag => `<span class="task-tag">${escapeHtml(tag)}</span>`).join("")}
+      ${hasTagsRow ? `
+        <div class="task-tags-row">
+          <div class="task-tags">
+            ${task.workload ? `<span class="task-tag workload-${task.workload.toLowerCase()}">${escapeHtml(task.workload)}</span>` : ""}
+            ${(task.tags || []).map(tag => `<span class="task-tag">${escapeHtml(tag)}</span>`).join("")}
+          </div>
+          ${deadline ? `<span class="task-deadline deadline-${deadline.status}">${escapeHtml(deadline.text)}</span>` : ""}
         </div>
-        ${deadline ? `<span class="task-deadline deadline-${deadline.status}">${escapeHtml(deadline.text)}</span>` : ""}
-      </div>
-      <div class="task-details">
-        ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ""}
-        ${renderTaskSteps(task, columnId)}
-        <div class="task-info">
-          ${task.dueDate ? `<span class="task-info-item"><span class="task-info-label">Due</span><span>${escapeHtml(task.dueDate)}</span></span>` : ""}
-          ${task.workload ? `<span class="task-info-item"><span class="task-info-label">Workload</span><span class="task-workload workload-${task.workload.toLowerCase()}">${escapeHtml(task.workload)}</span></span>` : ""}
+      ` : ""}
+      ${hasDetails ? `
+        <div class="task-details">
+          ${hasDescription ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ""}
+          ${hasSteps ? renderTaskSteps(task, columnId) : ""}
+          ${hasInfo ? `
+            <div class="task-info">
+              ${task.dueDate ? `<span class="task-info-item"><span class="task-info-label">Due</span><span>${escapeHtml(task.dueDate)}</span></span>` : ""}
+              ${task.workload ? `<span class="task-info-item"><span class="task-info-label">Workload</span><span class="task-workload workload-${task.workload.toLowerCase()}">${escapeHtml(task.workload)}</span></span>` : ""}
+            </div>
+          ` : ""}
         </div>
-      </div>
+      ` : ""}
       <div class="task-actions">
         <div class="action-row">
           <button class="ghost-btn small-btn" data-edit-task="${escapeHtml(task.id)}" data-column="${escapeHtml(columnId)}">Edit</button>

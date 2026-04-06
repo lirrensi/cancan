@@ -1,7 +1,7 @@
 ---
-summary: "Current purpose, architecture, storage model, and product decisions for the CanCan app"
+summary: "Current purpose, architecture, storage model, and key UI/layout decisions for the CanCan app"
 created: 2026-04-06
-updated: 2026-04-06
+updated: 2026-04-07
 memory_type: semantic
 tags: [code, cancan, kanban, luminka, architecture, ui, markdown]
 ---
@@ -46,13 +46,13 @@ Each board markdown file supports:
 4. `## Column Name`
 5. `### Task Title`
 6. Indented task properties like `due`, `tags`, `priority`, `workload`, `defaultExpanded`, and `steps`
-7. Indented fenced `md` block for task description
+7. Indented `<cancan_description>` block for task description
 
 ## Collaborative Editing Metadata
 
 The top front matter now includes default technical metadata for agents. Important keys:
 
-- `format: cancan-markdown-kanban-v1`
+- `format: cancan-markdown-kanban-v2`
 - `agent_editing_guide: |` with instructions on preserving the board structure
 
 This is meant to help external agents or manual editors avoid breaking the file while the human mostly uses the UI.
@@ -80,6 +80,8 @@ This is meant to help external agents or manual editors avoid breaking the file 
 - Double-clicking a task title opens the edit modal.
 - Edit modal shows `Delete` in the left action slot and changes the primary action to `Save Edits`.
 - Search clear is inline as an `x` inside the input, not a separate button.
+- Kanban columns are intended to always fill the available vertical board height.
+- There should be a small visual gap between the bottoms of columns and the horizontal scrollbar.
 
 ## Implementation Shape
 
