@@ -1,0 +1,121 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            goos: windows
+            goarch: amd64
+            archive: zip
+            asset: cancan_windows_amd64.zip
+            binary: cancan.exe
+            webview: true
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            archive: tar.gz
+            asset: cancan_linux_amd64.tar.gz
+            binary: cancan
+            webview: false
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            archive: tar.gz
+            asset: cancan_linux_arm64.tar.gz
+            binary: cancan
+            webview: false
+          - runner: macos-latest
+            goos: darwin
+            goarch: amd64
+            archive: tar.gz
+            asset: cancan_macos_amd64.tar.gz
+            binary: cancan
+            webview: false
+          - runner: macos-latest
+            goos: darwin
+            goarch: arm64
+            archive: tar.gz
+            asset: cancan_macos_arm64.tar.gz
+            binary: cancan
+            webview: false
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Set up MSYS2
+        if: matrix.webview
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          install: >-
+            mingw-w64-x86_64-gcc
+
+      - name: Build Windows webview binary
+        if: matrix.webview
+        shell: pwsh
+        run: |
+          Remove-Item -Force rsrc* -ErrorAction SilentlyContinue
+          $env:CC = 'C:\msys64\mingw64\bin\gcc.exe'
+          $env:PATH = 'C:\msys64\mingw64\bin;' + $env:PATH
+          go run github.com/tc-hib/go-winres@latest simply --arch amd64 --out "rsrc.syso" --manifest gui --icon "winres/icon.png" --product-name "CanCan" --file-description "CanCan local kanban" --original-filename "cancan.exe"
+          go build -trimpath -tags webview -ldflags "-H windowsgui -s -w" -o cancan.exe .
+
+      - name: Build browser binary
+        if: ${{ !matrix.webview }}
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -trimpath -ldflags='-s -w' -o '${{ matrix.binary }}' .
+
+      - name: Package zip asset
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path '${{ matrix.binary }}' -DestinationPath '${{ matrix.asset }}' -Force
+
+      - name: Package tar.gz asset
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          tar -czf '${{ matrix.asset }}' '${{ matrix.binary }}'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
