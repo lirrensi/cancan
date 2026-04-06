@@ -1,5 +1,7 @@
 # CanCan
 
+![CanCan splash screen](assets/demo.jpg)
+
 CanCan is a small local issue tracker and kanban app that lives inside the folder you are already working in.
 
 Current release version: `v0.1.1`
