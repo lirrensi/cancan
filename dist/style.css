@@ -1,4 +1,6 @@
 :root {
+  --kanban-column-width: 300px;
+  --kanban-column-gap: 12px;
   --bg: #e6e1d7;
   --bg-alt: #ddd7cb;
   --bg-deep: #d4cec1;
@@ -384,25 +386,29 @@ button {
 
 .kanban-board {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   align-self: stretch;
   align-items: stretch;
-  gap: 12px;
-  padding-bottom: 0;
+  gap: var(--kanban-column-gap);
+  padding-bottom: 12px;
   box-sizing: border-box;
-  min-width: max-content;
+  width: max-content;
+  min-width: 100%;
   height: 100%;
   min-height: 0;
 }
 
 .kanban-column {
-  flex: 0 0 300px;
+  flex: 0 0 var(--kanban-column-width);
+  width: var(--kanban-column-width);
+  min-width: var(--kanban-column-width);
+  max-width: var(--kanban-column-width);
   display: flex;
   flex-direction: column;
   align-self: stretch;
   height: 100%;
   min-height: 0;
-  margin-bottom: 10px;
+  min-inline-size: 0;
   border: 1px solid rgba(108, 78, 39, 0.12);
   border-radius: var(--radius);
   background: var(--column-bg);
@@ -413,7 +419,6 @@ button {
   flex: 0 0 44px;
   height: 44px;
   min-height: 44px;
-  margin-bottom: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -497,7 +502,7 @@ button {
   gap: 8px;
   min-height: 100px;
   min-height: 0;
-  padding: 10px;
+  padding: 10px 10px 12px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -759,7 +764,10 @@ button {
 }
 
 .column-footer {
-  padding: 0 10px 10px;
+  flex: 0 0 auto;
+  padding: 12px 10px 10px;
+  border-top: 1px solid rgba(108, 78, 39, 0.1);
+  background: var(--header-bg);
 }
 
 .column-footer .ghost-btn {
@@ -1102,15 +1110,15 @@ body[data-theme="dark"] .search-clear:hover {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --kanban-column-width: 88vw;
+  }
+
   .sidebar,
   .topbar,
   .board-region {
     padding-left: 16px;
     padding-right: 16px;
-  }
-
-  .kanban-column {
-    flex-basis: 88vw;
   }
 
   .grid-two {

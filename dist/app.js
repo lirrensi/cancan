@@ -215,7 +215,10 @@ const DESCRIPTION_CLOSE_TAG = "</cancan_description>";
 
 const PRIORITY_ORDER = { high: 3, medium: 2, low: 1 };
 const WORKLOAD_ORDER = { Extreme: 4, Hard: 3, Normal: 2, Easy: 1 };
-const UI_VERSION = "v0.1.4";
+const DRAG_TYPE_TASK_ID = "application/x-cancan-task-id";
+const DRAG_TYPE_COLUMN_ID = "application/x-cancan-column-id";
+const DRAG_TYPE_COLUMN_INDEX = "application/x-cancan-column-index";
+const UI_VERSION = "v0.1.7";
 
 const state = {
   client: new LuminkaClient(),
@@ -1864,9 +1867,13 @@ function setupTaskDragAndDrop() {
 
     columnElement.addEventListener("drop", async event => {
       event.preventDefault();
+      const taskId = event.dataTransfer.getData(DRAG_TYPE_TASK_ID);
+      const fromColumnId = event.dataTransfer.getData(DRAG_TYPE_COLUMN_ID);
+      if (!taskId || !fromColumnId) {
+        return;
+      }
+      event.stopPropagation();
       columnElement.parentElement.classList.remove("drag-over");
-      const taskId = event.dataTransfer.getData("text/task-id");
-      const fromColumnId = event.dataTransfer.getData("text/column-id");
       const toColumnId = columnElement.dataset.tasksColumn;
       if (!taskId || !fromColumnId || !toColumnId) {
         return;
@@ -1901,8 +1908,8 @@ function setupTaskDragAndDrop() {
       event.stopPropagation();
       task.classList.add("dragging");
       event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/task-id", task.dataset.taskId);
-      event.dataTransfer.setData("text/column-id", task.dataset.columnId);
+      event.dataTransfer.setData(DRAG_TYPE_TASK_ID, task.dataset.taskId);
+      event.dataTransfer.setData(DRAG_TYPE_COLUMN_ID, task.dataset.columnId);
     });
     handle.addEventListener("dragend", () => {
       task.classList.remove("dragging");
@@ -1918,7 +1925,7 @@ function setupColumnDragAndDrop() {
     const header = column.querySelector(".column-header");
     header.addEventListener("dragstart", event => {
       column.classList.add("column-dragging");
-      event.dataTransfer.setData("text/column-index", String(index));
+      event.dataTransfer.setData(DRAG_TYPE_COLUMN_INDEX, String(index));
       event.dataTransfer.effectAllowed = "move";
     });
     header.addEventListener("dragend", () => {
@@ -1941,7 +1948,11 @@ function setupColumnDragAndDrop() {
     });
 
     column.addEventListener("drop", async event => {
-      const fromIndex = Number(event.dataTransfer.getData("text/column-index"));
+      const rawFromIndex = event.dataTransfer.getData(DRAG_TYPE_COLUMN_INDEX);
+      if (rawFromIndex === "") {
+        return;
+      }
+      const fromIndex = Number(rawFromIndex);
       if (Number.isNaN(fromIndex) || fromIndex === index) {
         return;
       }
